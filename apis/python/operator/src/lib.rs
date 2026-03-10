@@ -42,8 +42,10 @@ impl<T> DelayedCleanup<T> {
         CleanupHandle(self.0.clone())
     }
 
-    pub fn get_mut(&self) -> std::sync::MutexGuard<'_, T> {
-        self.0.try_lock().expect("failed to lock DelayedCleanup")
+    pub fn get_mut(&self) -> Result<std::sync::MutexGuard<'_, T>, String> {
+        self.0
+            .try_lock()
+            .map_err(|e| format!("failed to lock DelayedCleanup: {}", e))
     }
 }
 
@@ -54,8 +56,18 @@ impl Stream for DelayedCleanup<EventStream> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        let mut inner: std::sync::MutexGuard<'_, EventStream> = self.get_mut().get_mut();
-        inner.poll_next_unpin(cx)
+        match self.get_mut() {
+            Ok(mut inner) => inner.poll_next_unpin(cx),
+            Err(e) => {
+                if e.contains("poison") || e.contains("Poison") {
+                    // Lock is poisoned, stream should end
+                    std::task::Poll::Ready(None)
+                } else {
+                    // Lock temporarily unavailable, retry later
+                    std::task::Poll::Pending
+                }
+            }
+        }
     }
 }
 

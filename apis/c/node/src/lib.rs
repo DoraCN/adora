@@ -92,6 +92,11 @@ pub unsafe extern "C" fn adora_next_event(context: *mut c_void) -> *mut c_void {
 /// freed yet.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn read_adora_event_type(event: *const ()) -> EventType {
+    // SAFETY: The caller guarantees that `event` is a valid pointer obtained from
+    // `adora_next_event()` and not yet freed. The pointer points to a valid `Event`
+    // instance that was created by `Box::into_raw()` in `adora_next_event()`.
+    // The cast from `*const ()` to `*const Event` is valid because the original
+    // allocation was a `Box<Event>`.
     let event: &Event = unsafe { &*event.cast() };
     match event {
         Event::Stop(_) => EventType::Stop,
@@ -190,7 +195,7 @@ pub unsafe extern "C" fn read_adora_input_data(
                 *out_len = 0;
             },
             _ => {
-                todo!("adora C++ Node does not yet support higher level type of arrow. Only UInt8. 
+                todo!("adora C++ Node does not yet support higher level type of arrow. Only UInt8.
                 The ultimate solution should be based on arrow FFI interface. Feel free to contribute :)")
             }
         },

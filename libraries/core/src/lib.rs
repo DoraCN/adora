@@ -13,6 +13,41 @@ pub mod descriptor;
 pub mod metadata;
 pub mod topics;
 
+/// Adjusts a shared library path by adding platform-specific prefix and suffix.
+///
+/// This function takes a base path (without platform-specific prefix and extension)
+/// and returns a path with the appropriate shared library naming conventions:
+/// - On Unix-like systems: adds `lib` prefix and `.so` suffix
+/// - On macOS: adds `lib` prefix and `.dylib` suffix
+/// - On Windows: adds no prefix and `.dll` suffix
+///
+/// # Arguments
+/// * `path` - A path to the shared library without platform-specific prefix and extension.
+///   For example: `mylib` would become `libmylib.so` on Linux.
+///
+/// # Returns
+/// * `Ok(PathBuf)` - The adjusted path with platform-specific prefix and suffix.
+/// * `Err(eyre::ErrReport)` - If the path has no file name, contains invalid UTF-8,
+///   already starts with `lib` (on Unix/macOS), or already has an extension.
+///
+/// # Errors
+/// * Returns an error if:
+///   - The path has no file name
+///   - The file name contains invalid UTF-8
+///   - The file name already starts with `lib` (on Unix/macOS)
+///   - The path already has an extension
+///
+/// # Example
+/// ```
+/// use std::path::Path;
+/// use adora_core::adjust_shared_library_path;
+///
+/// let path = Path::new("mylib");
+/// match adjust_shared_library_path(path) {
+///     Ok(adjusted) => println!("Adjusted path: {:?}", adjusted),
+///     Err(e) => println!("Error: {}", e),
+/// }
+/// ```
 pub fn adjust_shared_library_path(path: &Path) -> Result<std::path::PathBuf, eyre::ErrReport> {
     let file_name = path
         .file_name()
